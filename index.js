@@ -30,7 +30,7 @@ const tenByTenSurface = [
 */
 
 class Node {
-  constructor(location, priority) {
+  constructor(location /* tuple */, priority /* number */) {
     const x = location[0]
     const y = location[1]
     this.id = `${x},${y}`
@@ -42,33 +42,34 @@ class Node {
 }
 
 class SquareGrid {
-    constructor(width, height, walls=[]) {
+    constructor(width /* number */, height /* number */, holes=new Set()) {
         this.width = width
         this.height = height
-        this.walls = walls
+        this.holes = holes
+        this.representation = []
     }
 
-    inBounds(point) {
+    inBounds(point /* tuple */) {
         const x = point[0]
         const y = point[1]
         return 0 <= x && x < this.width && 0 <= y && y < this.height
     }
 
-    passable(point) {
-        return !this.walls.includes(point)
+    passable(point /* tuple */) {
+        return !this.holes.has(makeKey(point))
     }
 
-    neighbors(node) {
+    neighbors(node /* Node */) {
         const x = node.x
         const y = node.y
-        let results = [[x+1, y], [x, y-1], [x-1, y], [x, y+1]]
-        if ((x + y) % 2 == 0) {
-          results.reverse() // aesthetics
-        }
-        results = results.filter(point => this.inBounds(point))
-        results = results.filter(point => this.passable(point))
-        return results
-      }
+        const results = [[x+1, y], [x, y-1], [x-1, y], [x, y+1]]
+        return results.filter(point => this.inBounds(point))
+                      .filter(point => this.passable(point))
+    }
+
+    render(pointToUpdate, value, costSoFar) {
+      // check if thing has already been rendered
+    }
 }
 class GridWithWeights extends SquareGrid {
     constructor(width, height) {
@@ -89,11 +90,11 @@ class PriorityQueue {
     this.heap = [null]
   }
 
-  empty() {
-    return this.heap.length === 0
+  hasMore() {
+    return this.heap.length > 0
   }
 
-  insert(newNode) {
+  insert(newNode /* Node */) {
     this.heap.push(newNode)
     let currentNodeIdx = this.heap.length - 1
     let currentNodeParentIdx = Math.floor(currentNodeIdx / 2)
@@ -138,6 +139,7 @@ function distance(start,end) {
 
 function findAStarPath(graph, start, end) {
   const frontier = new PriorityQueue()
+  // keyed by stringified location
   const cameFrom = {}
   const costSoFar = {}
 
@@ -146,14 +148,12 @@ function findAStarPath(graph, start, end) {
   costSoFar[startNode.id] = 0
   cameFrom[startNode.id] = 0
 
-  while (!frontier.empty()) {
+  while (frontier.hasMore()) {
     const current = frontier.remove()
-    console.log({ current })
     if (current.id === makeKey(end)) {
       break
     }
 
-    // console.log({ costSoFar })
     graph.neighbors(current).forEach(neighbor => {
 
       const additionalCost = graph.cost(current, neighbor)
@@ -180,5 +180,6 @@ const generateIndexInBounds = () => Math.floor(Math.random()*10)
 const start = [ generateIndexInBounds(), generateIndexInBounds()]
 const end = [ generateIndexInBounds(), generateIndexInBounds()]
 
-console.log(start, end)
-console.log(findAStarPath(wall ,start, end))
+console.log({ start, end })
+const { cameFrom } = findAStarPath(wall ,start, end)
+console.log({ cameFrom })
