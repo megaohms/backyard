@@ -32,6 +32,7 @@ class Terminal {
   constructor(dataTable) {
     this.stream = process.stdout
     this.dataTable = dataTable
+
     // store each stringified row as array so we dont have to rerender every point
     this.stringifiedRows = this.dataTable.map(this.stringifyRow)
   }
@@ -44,40 +45,57 @@ class Terminal {
   render(location, symbol) {
     // mutate existing to save space
     if (location.length && symbol) {
-      const currentRowIdx = location[0]
-      const currentColumnIdx = location[1]
+      const currentRowIdx = location[1]
+      const currentColumnIdx = location[0]
       this.dataTable[currentRowIdx][currentColumnIdx] = symbol
       this.stringifiedRows[currentRowIdx] = this.stringifyRow(this.dataTable[currentRowIdx])
-      // this.stream.moveCursor(-this.dataTable[0].length, -this.dataTable.length)
     }
     else {
     }
     this.stream.write(this.stringifyTable())
-      this.stream.moveCursor(-this.dataTable[0].length, -this.dataTable.length)
+    this.stream.moveCursor(-this.dataTable[0].length, -this.dataTable.length)
   }
   end() {
     this.stream.moveCursor(-this.dataTable[0].length, this.dataTable.length)
   }
 }
-
-const square = [
-  [ 0, 0 ],
-  [ 0, 0 ],
-]
-
-const printer = new Terminal(square)
-
-printer.render([0,0], '.')
-printer.render([0,1], '.')
-printer.render([1,0], '.')
-printer.render([1,1], '.')
-printer.end()
+//
+// const square = [
+//   [ 0, 0 ],
+//   [ 0, 0 ],
+// ]
+//
+// const printer = new Terminal(square)
+//
+// printer.render([0,0], '.')
+// printer.render([0,1], '.')
+// printer.render([1,0], '.')
+// printer.render([1,1], '.')
+// printer.end()
 
 class SquareGrid {
     constructor(width /* number */, height /* number */, holes=new Set()) {
         this.width = width
         this.height = height
         this.holes = holes
+        this.table = this.createDataTable(width, height)
+    }
+
+    createDataTable(tableWidth, tableHeight) {
+      const table = []
+      for (let rowIdx = 0; rowIdx < tableHeight; rowIdx++) {
+        const row = []
+        for (let colIdx = 0; colIdx < tableWidth; colIdx++) {
+          if (this.holes.has(makeKey(colIdx, rowIdx))) {
+            row.push('#')
+          }
+          else {
+            row.push('.')
+          }
+        }
+        table.push(row)
+      }
+      return table
     }
 
     isPointInBounds(point /* tuple */) {
@@ -113,29 +131,81 @@ class GridWithWeights extends SquareGrid {
     }
 }
 
+class Node {
+  constructor(location /* tuple */, cost /* number */) {
+    const x = location[0]
+    const y = location[1]
+    this.id = `${x},${y}`
+    this.x = x
+    this.y = y
+    this.location = location
+    this.cost = cost
+  }
+  setCost(cost) {
+    this.cost = cost
+  }
+}
+
 class PriorityQueue {
   constructor() {
     this.heap = [null]
   }
 
   hasMore() {
-    return this.heap.length > 0
+    return this.heap.length > 1
   }
 
-  insert(newNode /* Node */) {
-    this.heap.push(newNode)
+  reorderFromFront() {
+    let currentIdx = 1
+    let [left, right] = [2*currentIdx, 2*currentIdx + 1]
+    let currentChildIdx = this.heap[right] && this.heap[right].cost <= this.heap[left].cost ? right : left
+    while (this.heap[currentChildIdx] && this.heap[currentIdx].cost >= this.heap[currentChildIdx].cost) {
+      let currentNode = this.heap[currentIdx]
+      let currentChildNode = this.heap[currentChildIdx]
+      this.heap[currentChildIdx] = currentNode
+      this.heap[currentIdx] = currentChildNode
+    }
+    if (this.heap.length > 1) {
+      console.log({ heapPriorities: this.heap.slice(1).map(({ cost, id }) => ({ cost, id })) })
+    }
+  }
+
+  upsert(location, cost) {
+    const nodeKey = makeKey(location)
+    let idx = 1
+    let node
+
+    for (idx = 1; idx < this.heap.length; idx++) {
+      if (this.heap[idx].id === nodeKey) {
+        node = this.heap[idx]
+        node.setCost(cost)
+        console.log({ node })
+        this.heap.splice(idx, 1)
+        this.heap = [null, node, ...this.heap.slice(1)]
+        this.reorderFromFront()
+        return
+      }
+    }
+    if (!node) {
+      node = new Node(location, cost)
+    }
+    this.heap.push(node)
     let currentNodeIdx = this.heap.length - 1
     let currentNodeParentIdx = Math.floor(currentNodeIdx / 2)
     while (
       this.heap[currentNodeParentIdx] &&
-      newNode.priority > this.heap[currentNodeParentIdx].priority
+      node.cost < this.heap[currentNodeParentIdx].cost
     ) {
+
       const parent = this.heap[currentNodeParentIdx]
-      this.heap[currentNodeParentIdx] = newNode
+      this.heap[currentNodeParentIdx] = node
       this.heap[currentNodeIdx] = parent
       currentNodeIdx = currentNodeParentIdx
       currentNodeParentIdx = Math.floor(currentNodeIdx / 2)
     }
+    // if (this.heap.length > 1) {
+    //   console.log({ heapPriorities: this.heap.slice(1).map(({ cost, id }) => ({ cost, id })) })
+    // }
   }
 
   remove() {
@@ -146,48 +216,28 @@ class PriorityQueue {
     }
     const toRemove = this.heap[1]
     this.heap[1] = this.heap.pop()
-    let currentIdx = 1
-    let [left, right] = [2*currentIdx, 2*currentIdx + 1]
-    let currentChildIdx = this.heap[right] && this.heap[right].priority >= this.heap[left].priority ? right : left
-    while (this.heap[currentChildIdx] && this.heap[currentIdx].priority <= this.heap[currentChildIdx].priority) {
-      let currentNode = this.heap[currentIdx]
-      let currentChildNode = this.heap[currentChildIdx]
-      this.heap[currentChildIdx] = currentNode
-      this.heap[currentIdx] = currentChildNode
-    }
+    this.reorderFromFront()
     return toRemove
-  }
-}
-
-class Node {
-  constructor(location /* tuple */, priority /* number */) {
-    const x = location[0]
-    const y = location[1]
-    this.id = `${x},${y}`
-    this.x = x
-    this.y = y
-    this.location = location
-    this.priority = priority
   }
 }
 
 function distance(start,end) {
   const [ x1, y1 ] = start
   const [ x2, y2 ] = end
-  return Math.sqrt(Math.exp(x1 + x2, 2) + Math.exp(y1 + y2, 2))
+  return Math.sqrt(Math.pow(Math.abs(x1 - x2), 2) + Math.pow(Math.abs(y1 - y2), 2))
 }
 
-function findAStarPath(graph, start, end) {
+function findAStarPath(graph, start, end, printer) {
   const frontier = new PriorityQueue()
   // keyed by stringified location
   const cameFrom = {}
   const costSoFar = {}
   const endKey = makeKey(end)
 
-  const startNode = new Node(start, 0)
-  frontier.insert(startNode, 0)
-  costSoFar[startNode.id] = 0
-  cameFrom[startNode.id] = 0
+  frontier.upsert(start, 0)
+  const startKey = makeKey(start)
+  costSoFar[startKey] = 0
+  cameFrom[startKey] = 0
 
   while (frontier.hasMore()) {
     const current = frontier.remove()
@@ -196,17 +246,15 @@ function findAStarPath(graph, start, end) {
     }
 
     graph.getNeighbors(current).forEach(neighbor => {
-
       const additionalCost = graph.cost(current, neighbor)
       const newCost = costSoFar[current.id] + additionalCost
       const neighborId = makeKey(neighbor)
-      if (!costSoFar.hasOwnProperty(neighborId) || newCost < costSoFar[neighborId]) {
+      if (!costSoFar.hasOwnProperty(neighborId) || (newCost < costSoFar[neighborId] && neighborId !== startKey)) {
+        const priority = newCost + distance(neighbor, end)
         costSoFar[neighborId] = newCost
-        const priority = costSoFar[current.id] + additionalCost + distance(neighbor, end)
-        const neighborNode = new Node(neighbor, priority)
-        frontier.insert(neighborNode)
         cameFrom[neighborId] = current.id
-        graph.render()
+        printer.render(neighbor, costSoFar[neighborId])
+        frontier.upsert(neighbor, priority)
       }
     })
   }
@@ -217,11 +265,18 @@ function makeKey(point) {
   return `${point[0]},${point[1]}`
 }
 
-const wall = new GridWithWeights(10, 10)
 const generateIndexInBounds = () => Math.floor(Math.random()*10)
-const start = [ generateIndexInBounds(), generateIndexInBounds()]
-const end = [ generateIndexInBounds(), generateIndexInBounds()]
+const start = [generateIndexInBounds(), generateIndexInBounds()]
+const end = [generateIndexInBounds(), generateIndexInBounds()]
 
-// console.log({ start, end })
-// const { cameFrom } = findAStarPath(wall ,start, end)
+const wall = new GridWithWeights(10, 10)
+const printer = new Terminal(wall.table)
+
+printer.render(start, 'S')
+printer.render(end, 'E')
+const { cameFrom, costSoFar } = findAStarPath(wall, start, end, printer)
+printer.render(start, 'S')
+printer.render(end, 'E')
+printer.end()
+console.log({ start, end, cost: costSoFar[makeKey(end)]})
 // console.log({ cameFrom })
