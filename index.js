@@ -186,7 +186,8 @@ class SurfaceNode {
   addNeighbors(neighbors) {
     const thisNeighbors = this.neighbors
     neighbors.forEach(({ neighbor, direction }) => {
-      thisNeighbors.add(neighbor.id)
+      thisNeighbors[neighbor.id] = direction
+      thisNeighbors[direction] = neighbor.id
     })
   }
   getNeighborToThe(direction) {
@@ -220,6 +221,9 @@ class RoomNode {
     // all distances should be calculated on real coordinates
     // x0 and y0 are search SearchSpace (normalized to floor, or 0,0,0)
     // x, y, z are real coordinates
+
+    // x0, y0 are connecting points where
+    // new suface will be added to the search space
     this.wallNorth = new SurfaceNode('wall', {
       width: x,
       height: z,
@@ -281,58 +285,56 @@ class RoomNode {
         return y0 + y
       },
     })
-    this.wallN.addNeighbors([
-      { neighbor: this.wallE, direction: 'left' },
-      { neighbor: this.wallW, direction: 'right' },
+    this.wallNorth.addNeighbors([
+      { neighbor: this.wallEast, direction: 'left' },
+      { neighbor: this.wallWest, direction: 'right' },
       { neighbor: this.floor, direction: 'bottom' },
       { neighbor: this.ceil, direction: 'top' },
     ])
-    this.wallE.addNeighbors([
-      { neighbor: this.wallN, direction: 'right' },
-      { neighbor: this.wallS, direction: 'left' },
+    this.wallEast.addNeighbors([
+      // this.wallNorth, this.wallSouth, this.floor, this.ceil
+      { neighbor: this.wallNorth, direction: 'right' },
+      { neighbor: this.wallSouth, direction: 'left' },
       { neighbor: this.floor, direction: 'bottom' },
       { neighbor: this.ceil, direction: 'top' },
     ])
-    this.wallS.addNeighbors([
-      { neighbor: this.wallE, direction: 'right' },
-      { neighbor: this.wallW, direction: 'left' },
+    this.wallSouth.addNeighbors([
+      // this.wallEast, this.wallWest, this.floor, this.ceil
+      { neighbor: this.wallEast, direction: 'right' },
+      { neighbor: this.wallWest, direction: 'left' },
       { neighbor: this.floor, direction: 'bottom' },
       { neighbor: this.ceil, direction: 'top' },
     ])
-    this.wallW.addNeighbors([
-      { neighbor: this.wallS, direction: 'right' },
-      { neighbor: this.wallN, direction: 'left' },
+    this.wallWest.addNeighbors([
+      // this.wallSouth, this.wallNorth, this.floor, this.ceil,
+      { neighbor: this.wallSouth, direction: 'right' },
+      { neighbor: this.wallNorth, direction: 'left' },
       { neighbor: this.floor, direction: 'bottom' },
       { neighbor: this.ceil, direction: 'top' },
     ])
     this.floor.addNeighbors([
-      { neighbor: this.wallN, direction: 'top' },
-      { neighbor: this.wallS, direction: 'bottom' },
-      { neighbor: this.wallE, direction: 'right' },
-      { neighbor: this.wallW, direction: 'left' },
+      // this.wallNorth, this.wallSouth, this.wallEast, this.wallWest
+      { neighbor: this.wallNorth, direction: 'top' },
+      { neighbor: this.wallSouth, direction: 'bottom' },
+      { neighbor: this.wallEast, direction: 'right' },
+      { neighbor: this.wallWest, direction: 'left' },
     ])
     this.ceil.addNeighbors([
-      { neighbor: this.wallN, direction: 'top' },
-      { neighbor: this.wallS, direction: 'bottom' },
-      { neighbor: this.wallE, direction: 'right' },
-      { neighbor: this.wallW, direction: 'left' },
+      // this.wallNorth, this.wallSouth, this.wallEast, this.wallWest,
+      { neighbor: this.wallNorth, direction: 'top' },
+      { neighbor: this.wallSouth, direction: 'bottom' },
+      { neighbor: this.wallEast, direction: 'right' },
+      { neighbor: this.wallWest, direction: 'left' },
     ])
+    // draws table of room unfolded
     const noWalls = [{topLeft: [0,0]}, {topLeft:[0,2]},{topLeft: [0,1], bottomRight: [2,1]}, {topLeft: [3,1], bottomRight: [3,3]}]
-    this.room2d = GridWithWeights(4, 3, noWalls)
+    this.room2d = new GridWithWeights(4, 3, noWalls)
   }
 }
 
-class SearchSpace extends RectangularGrid{
+class SearchSpace extends GridWithWeights{
   constructor(width, height) {
     super(width, height)
-    // track orientation? x-pos, x-neg, y-pos...
-    // floor-in-plan is z-positive
-    // "right" to floor nieghbor is x-neg
-  }
-  transformNewOntoSurface(nextSurface, direction) {
-    // append rows and columns in correct orientation
-    // update width and height
-    if (direction === 'top' || direction === 'bottom') {}
   }
 }
 
@@ -396,21 +398,25 @@ function findAStarPath(graph, start, end, printer) {
 }
 
 function makeKey(point) {
-  return `${point[0]},${point[1]}`
+  return `${point[0]},${point[1]},${point[2]}`
 }
 
-const generateIndexInBounds = () => Math.floor(Math.random()*10)
-const start = [generateIndexInBounds(), generateIndexInBounds()]
-const end = [generateIndexInBounds(), generateIndexInBounds()]
+const x = 10
+const y = 10
+const z = 10
+const generateIndexInBounds = max => Math.floor(Math.random()*max)
+const start = [generateIndexInBounds(x), generateIndexInBounds(y), generateIndexInBounds(z)]
+const end = [generateIndexInBounds(x), generateIndexInBounds(y), generateIndexInBounds(z)]
 
 // const wall = new GridWithWeights(10, 10, [{topLeft: [0,0], bottomRight: [1,2]}])
-const room = new RoomNode({ x: 10, y: 10, z: 10 })
-const printer = new Terminal(room.table)
+const room = new RoomNode({ x, y, z })
+const searchSpace = new SearchSpace(x, y)
+const printer = new Terminal(searchSpace.table)
 
 printer.render(start, 'S')
 printer.render(end, 'E')
 console.log({ start, end })
-const { cameFrom, costSoFar } = findAStarPath(wall, start, end, printer)
+const { cameFrom, costSoFar } = findAStarPath(searchSpace, start, end, printer)
 printer.render(end, 'E')
 printer.end()
 console.log({ start, end, cost: costSoFar[makeKey(end)]})
