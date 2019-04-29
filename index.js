@@ -221,7 +221,8 @@ class RoomNode {
     // x0 and y0 are search SearchSpace (normalized to floor, or 0,0,0)
     // x, y, z are real coordinates
     this.wallNorth = new SurfaceNode('wall', {
-      ...dimensions,
+      width: x,
+      height: z,
       getRelativeX: function(x0, y0, x, y, z) {
         return x0 + x
       },
@@ -230,7 +231,8 @@ class RoomNode {
       }
     })
     this.wallEast = new SurfaceNode('wall', {
-      ...dimensions,
+      width: y,
+      height: z,
       getRelativeX: function(x0, y0, x, y, z) {
         return x0 + dimensions.y - y
       },
@@ -239,7 +241,8 @@ class RoomNode {
       }
     })
     this.wallSouth = new SurfaceNode('wall', {
-      ...dimensions,
+      width: x,
+      height: z,
       getRelativeX: function(x0, y0, x, y, z) {
         return x0 + x
       },
@@ -248,7 +251,8 @@ class RoomNode {
       },
     })
     this.wallWest = new SurfaceNode('wall', {
-      ...dimensions,
+      width: y,
+      height: z,
       getRelativeX: function(x0, y0, x, y, z) {
         return x0 - dimensions.z - z
       },
@@ -257,7 +261,8 @@ class RoomNode {
       },
     })
     this.ceil = new SurfaceNode('ceiling', {
-      ...dimensions,
+      width: x,
+      height: y,
       // flipping the ceiling upside-down
       getRelativeX: function(x0, y0, x, y, z) {
         return x0 + dimensions.x - x
@@ -267,9 +272,14 @@ class RoomNode {
       },
     })
     this.floor = new SurfaceNode('floor', {
-      ...dimensions,
-      getRelativeX: function(x0, y0) {},
-      getRelativeY: function(x0, y0) {},
+      width: x,
+      height: y,
+      getRelativeX: function(x0, y0) {
+        return x0 + x
+      },
+      getRelativeY: function(x0, y0) {
+        return y0 + y
+      },
     })
     this.wallN.addNeighbors([
       { neighbor: this.wallE, direction: 'left' },
