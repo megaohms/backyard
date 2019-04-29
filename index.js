@@ -64,7 +64,7 @@ class Terminal {
 }
 
 class RectangularGrid {
-    constructor(width /* number */, height /* number */, holes /*[{ topLeft, ?bottomRight }]*/) {
+    constructor(width /* number */, height /* number */, holes=[] /*[{ topLeft, ?bottomRight }]*/) {
         this.width = width
         this.height = height
         this.holes = new Set()
@@ -165,55 +165,165 @@ class Node {
     this.location = location
     this.cost = cost
   }
-  setCost(cost) {
-    this.cost = cost
-  }
 }
 
 class SurfaceNode {
-  constructor(type, orientation='', neighbors=new Set()) {
+  constructor(type, dimensions, neighbors={}) {
     this.type = type
     // orientation is only for vertical surfaces: North, East, South, West
-    this.orientation = orientation
-    this.id = `${type}${orientation}` // todo: add parentRoom name in id
+    this.id = `${type}` // todo: add parentRoom name in id
     this.neighbors = neighbors
+    const { width, height } = dimensions
+    this.grid = new GridWithWeights(width, height)
+    this.getRelativeX = dimensions.getRelativeX // takes search space's x,y
   }
-  addNeighbor(neighbor) {
-    this.neighbors.add(neighbor.id)
+  addNeighbor(sharedEdge, neighbor) {
+    // sharedEdge can be
+    // 'top': y+, 'bottom': y-, 'left': x-, 'right': x+
+    this.neighbors[sharedEdge] = neighbor.id
+    this.neighbors[neighbor.id] = sharedEdge
   }
   addNeighbors(neighbors) {
     const thisNeighbors = this.neighbors
-    neighbors.forEach(neighbor => {
+    neighbors.forEach(({ neighbor, direction }) => {
       thisNeighbors.add(neighbor.id)
     })
   }
+  getNeighborToThe(direction) {
+    return this.neighbors[direction]
+  }
 }
 
-class RoomNode() {
+class RoomNode {
   /*
        ___
    ___|_w_|___ ___
   |_w_|_f_|_w_|_c_|
       |_w_|
   */
-  constructor(){
+  constructor(dimensions /* {x, y, x} in feet */){
     // todo: prefer ceil/floor, floor/wall, wall/ceil
     // todo: 2x wall cost
-    this.wallN = new SurfaceNode('wall', 'North')
-    this.wallE = new SurfaceNode('wall', 'East')
-    this.wallS = new SurfaceNode('wall', 'South')
-    this.wallW = new SurfaceNode('wall', 'West')
-    this.ceil = new SurfaceNode('ceiling')
-    this.floor= new SurfaceNode('floor')
-    this.wallN.addNeighbors([this.wallE, this.wallW, this.floor, this.ceil])
-    this.wallE.addNeighbors([this.wallN, this.wallS, this.floor, this.ceil])
-    this.wallS.addNeighbors([this.wallE, this.wallW, this.floor, this.ceil])
-    this.wallW.addNeighbors([this.wallN, this.wallS, this.floor, this.ceil])
-    this.floor.addNeighbors([this.wallN, this.wallE, this.wallS, this.wallW])
+    // transform surfaces to be same orientatin
+    const { x, y, z } = dimensions
+    // topLeft of floor is x=0, y=0; z=0
+    // bottomLeft of North wall is x=0; y=0; z=0
+
+    // normalize transformations to the floor
+    // North wall transformed becomes x=0, y=-z
+    // x0 is search space's x; y0 is search space's y
+    // x-relative = (x0, y0) => x0 + 0
+    // y-relative = (x0, y0) => y0 - this.z
+    //
+
+    // all search space should be on relative x and y
+    // all distances should be calculated on real coordinates
+    // x0 and y0 are search SearchSpace (normalized to floor, or 0,0,0)
+    // x, y, z are real coordinates
+    this.wallNorth = new SurfaceNode('wall', {
+      ...dimensions,
+      getRelativeX: function(x0, y0, x, y, z) {
+        return x0 + x
+      },
+      getRelativeY: function(x0, y0, x, y, z) {
+        return y0 - z
+      }
+    })
+    this.wallEast = new SurfaceNode('wall', {
+      ...dimensions,
+      getRelativeX: function(x0, y0, x, y, z) {
+        return x0 + dimensions.y - y
+      },
+      getRelativeY: function(x0, y0, x, y, z) {
+        return y0 + x
+      }
+    })
+    this.wallSouth = new SurfaceNode('wall', {
+      ...dimensions,
+      getRelativeX: function(x0, y0, x, y, z) {
+        return x0 + x
+      },
+      getRelativeY: function(x0, y0, x, y, z) {
+        return y0 + z
+      },
+    })
+    this.wallWest = new SurfaceNode('wall', {
+      ...dimensions,
+      getRelativeX: function(x0, y0, x, y, z) {
+        return x0 - dimensions.z - z
+      },
+      getRelativeY: function(x0, y0, x, y, z) {
+        return y0 + y
+      },
+    })
+    this.ceil = new SurfaceNode('ceiling', {
+      ...dimensions,
+      // flipping the ceiling upside-down
+      getRelativeX: function(x0, y0, x, y, z) {
+        return x0 + dimensions.x - x
+      },
+      getRelativeY: function(x0, y0, x, y, z) {
+        return y0 + y
+      },
+    })
+    this.floor = new SurfaceNode('floor', {
+      ...dimensions,
+      getRelativeX: function(x0, y0) {},
+      getRelativeY: function(x0, y0) {},
+    })
+    this.wallN.addNeighbors([
+      { neighbor: this.wallE, direction: 'left' },
+      { neighbor: this.wallW, direction: 'right' },
+      { neighbor: this.floor, direction: 'bottom' },
+      { neighbor: this.ceil, direction: 'top' },
+    ])
+    this.wallE.addNeighbors([
+      { neighbor: this.wallN, direction: 'right' },
+      { neighbor: this.wallS, direction: 'left' },
+      { neighbor: this.floor, direction: 'bottom' },
+      { neighbor: this.ceil, direction: 'top' },
+    ])
+    this.wallS.addNeighbors([
+      { neighbor: this.wallE, direction: 'right' },
+      { neighbor: this.wallW, direction: 'left' },
+      { neighbor: this.floor, direction: 'bottom' },
+      { neighbor: this.ceil, direction: 'top' },
+    ])
+    this.wallW.addNeighbors([
+      { neighbor: this.wallS, direction: 'right' },
+      { neighbor: this.wallN, direction: 'left' },
+      { neighbor: this.floor, direction: 'bottom' },
+      { neighbor: this.ceil, direction: 'top' },
+    ])
+    this.floor.addNeighbors([
+      { neighbor: this.wallN, direction: 'top' },
+      { neighbor: this.wallS, direction: 'bottom' },
+      { neighbor: this.wallE, direction: 'right' },
+      { neighbor: this.wallW, direction: 'left' },
+    ])
+    this.ceil.addNeighbors([
+      { neighbor: this.wallN, direction: 'top' },
+      { neighbor: this.wallS, direction: 'bottom' },
+      { neighbor: this.wallE, direction: 'right' },
+      { neighbor: this.wallW, direction: 'left' },
+    ])
     const noWalls = [{topLeft: [0,0]}, {topLeft:[0,2]},{topLeft: [0,1], bottomRight: [2,1]}, {topLeft: [3,1], bottomRight: [3,3]}]
     this.room2d = GridWithWeights(4, 3, noWalls)
   }
+}
 
+class SearchSpace extends RectangularGrid{
+  constructor(width, height) {
+    super(width, height)
+    // track orientation? x-pos, x-neg, y-pos...
+    // floor-in-plan is z-positive
+    // "right" to floor nieghbor is x-neg
+  }
+  transformNewOntoSurface(nextSurface, direction) {
+    // append rows and columns in correct orientation
+    // update width and height
+    if (direction === 'top' || direction === 'bottom') {}
+  }
 }
 
 function distance(start,end) {
@@ -284,7 +394,7 @@ const start = [generateIndexInBounds(), generateIndexInBounds()]
 const end = [generateIndexInBounds(), generateIndexInBounds()]
 
 // const wall = new GridWithWeights(10, 10, [{topLeft: [0,0], bottomRight: [1,2]}])
-const room = createRoom()
+const room = new RoomNode({ x: 10, y: 10, z: 10 })
 const printer = new Terminal(room.table)
 
 printer.render(start, 'S')
