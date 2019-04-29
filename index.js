@@ -153,7 +153,6 @@ class GridWithWeights extends SquareGrid {
     }
 }
 
-
 class Node {
   constructor(location /* tuple */, cost /* number */) {
     const x = location[0]
@@ -169,7 +168,54 @@ class Node {
   }
 }
 
+class SurfaceNode {
+  constructor(type, orientation, level neighbors=new Set()) {
+    this.type = type
+    // level is 0-indexed
+    this.level = level
+    // orientation is only for vertical surfaces: North, East, South, West
+    this.orientation = orientation
+    this.id = `${type}${level}${orientation}` // todo: add parentRoom name in id
+    this.neighbors = neighbors
+  }
+  addNeighbor(neighbor) {
+    this.neighbors.add(neighbor.id)
+  }
+  addNeighbors(neighbors) {
+    const thisNeighbors = this.neighbors
+    neighbors.forEach(neighbor => {
+      thisNeighbors.add(neighbor.id)
+    })
+  }
+}
+
+class RoomNode() {
+  /*
+       ___
+   ___|_w_|___ ___
+  |_w_|_f_|_w_|_c_|
+      |_w_|
+  */
+  constructor(){
+    this.wallN = new SurfaceNode('North','wall')
+    this.wallE = new SurfaceNode('North','wall')
+    this.wallS = new SurfaceNode('North','wall')
+    this.wallW = new SurfaceNode('North','wall')
+    this.ceil = new SurfaceNode('ceiling')
+    this.floor= new SurfaceNode('floor')
+    this.wallN.addNeighbors([this.wallE, this.wallW, this.floor, this.ceil])
+    this.wallE.addNeighbors([this.wallN, this.wallS, this.floor, this.ceil])
+    this.wallS.addNeighbors([this.wallE, this.wallW, this.floor, this.ceil])
+    this.wallW.addNeighbors([this.wallN, this.wallS, this.floor, this.ceil])
+    this.floor.addNeighbors([this.wallN, this.wallE, this.wallS, this.wallW])
+    const noWalls = [{topLeft: [0,0]}, {topLeft:[0,2]},{topLeft: [0,1], bottomRight: [2,1]}, {topLeft: [3,1], bottomRight: [3,3]}]
+    const room2d = GridWithWeights(4, 3, noWalls)
+  }
+
+}
+
 function distance(start,end) {
+  // todo: update for wrapping surfaces
   const [ x1, y1 ] = start
   const [ x2, y2 ] = end
   return Math.sqrt(Math.pow(Math.abs(x1 - x2), 2) + Math.pow(Math.abs(y1 - y2), 2))
@@ -227,8 +273,9 @@ const generateIndexInBounds = () => Math.floor(Math.random()*10)
 const start = [generateIndexInBounds(), generateIndexInBounds()]
 const end = [generateIndexInBounds(), generateIndexInBounds()]
 
-const wall = new GridWithWeights(10, 10, [{topLeft: [0,0], bottomRight: [1,2]}])
-const printer = new Terminal(wall.table)
+// const wall = new GridWithWeights(10, 10, [{topLeft: [0,0], bottomRight: [1,2]}])
+const room = createRoom()
+const printer = new Terminal(room.table)
 
 printer.render(start, 'S')
 printer.render(end, 'E')
