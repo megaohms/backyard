@@ -1,0 +1,17 @@
+{
+  "name": "backyard",
+  "version": "1.0.0",
+  "description": "wiring path optimization",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Megan Ring",
+  "license": "ISC",
+  "devDependencies": {
+    "tinyqueue": "^2.0.2"
+  },
+  "dependencies": {
+    "fastpriorityqueue": "^0.6.1"
+  }
+}

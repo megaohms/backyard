@@ -28,6 +28,8 @@ const tenByTenSurface = [
 ]
 
 */
+
+const PriorityQueue = require('fastpriorityqueue')
 class Terminal {
   constructor(dataTable) {
     this.stream = process.stdout
@@ -131,6 +133,7 @@ class GridWithWeights extends SquareGrid {
     }
 }
 
+
 class Node {
   constructor(location /* tuple */, cost /* number */) {
     const x = location[0]
@@ -146,81 +149,6 @@ class Node {
   }
 }
 
-class PriorityQueue {
-  constructor() {
-    this.heap = [null]
-  }
-
-  hasMore() {
-    return this.heap.length > 1
-  }
-
-  reorderFromFront() {
-    let currentIdx = 1
-    let [left, right] = [2*currentIdx, 2*currentIdx + 1]
-    let currentChildIdx = this.heap[right] && this.heap[right].cost <= this.heap[left].cost ? right : left
-    while (this.heap[currentChildIdx] && this.heap[currentIdx].cost >= this.heap[currentChildIdx].cost) {
-      let currentNode = this.heap[currentIdx]
-      let currentChildNode = this.heap[currentChildIdx]
-      this.heap[currentChildIdx] = currentNode
-      this.heap[currentIdx] = currentChildNode
-    }
-    if (this.heap.length > 1) {
-      console.log({ heapPriorities: this.heap.slice(1).map(({ cost, id }) => ({ cost, id })) })
-    }
-  }
-
-  upsert(location, cost) {
-    const nodeKey = makeKey(location)
-    let idx = 1
-    let node
-
-    for (idx = 1; idx < this.heap.length; idx++) {
-      if (this.heap[idx].id === nodeKey) {
-        node = this.heap[idx]
-        node.setCost(cost)
-        console.log({ node })
-        this.heap.splice(idx, 1)
-        this.heap = [null, node, ...this.heap.slice(1)]
-        this.reorderFromFront()
-        return
-      }
-    }
-    if (!node) {
-      node = new Node(location, cost)
-    }
-    this.heap.push(node)
-    let currentNodeIdx = this.heap.length - 1
-    let currentNodeParentIdx = Math.floor(currentNodeIdx / 2)
-    while (
-      this.heap[currentNodeParentIdx] &&
-      node.cost < this.heap[currentNodeParentIdx].cost
-    ) {
-
-      const parent = this.heap[currentNodeParentIdx]
-      this.heap[currentNodeParentIdx] = node
-      this.heap[currentNodeIdx] = parent
-      currentNodeIdx = currentNodeParentIdx
-      currentNodeParentIdx = Math.floor(currentNodeIdx / 2)
-    }
-    // if (this.heap.length > 1) {
-    //   console.log({ heapPriorities: this.heap.slice(1).map(({ cost, id }) => ({ cost, id })) })
-    // }
-  }
-
-  remove() {
-    if (this.heap.length < 3) {
-      const toReturn = this.heap.pop()
-      this.heap[0] = null
-      return toReturn
-    }
-    const toRemove = this.heap[1]
-    this.heap[1] = this.heap.pop()
-    this.reorderFromFront()
-    return toRemove
-  }
-}
-
 function distance(start,end) {
   const [ x1, y1 ] = start
   const [ x2, y2 ] = end
@@ -228,33 +156,46 @@ function distance(start,end) {
 }
 
 function findAStarPath(graph, start, end, printer) {
-  const frontier = new PriorityQueue()
+  const frontier = new PriorityQueue(function(nodeA, nodeB) {
+    return nodeB.cost - nodeA.cost
+  })
   // keyed by stringified location
   const cameFrom = {}
   const costSoFar = {}
   const endKey = makeKey(end)
 
-  frontier.upsert(start, 0)
+  // frontier.upsert(start, 0)
+  const startNode = new Node(start, distance(start, end))
+  frontier.add(startNode)
+
   const startKey = makeKey(start)
   costSoFar[startKey] = 0
   cameFrom[startKey] = 0
 
-  while (frontier.hasMore()) {
-    const current = frontier.remove()
+  while (!frontier.isEmpty()) {
+    frontier.forEach(({ id, cost }) => console.log({ id, cost }))
+    const current = frontier.poll()
     if (current.id === endKey) {
+      console.log("FOUND")
       break
     }
 
     graph.getNeighbors(current).forEach(neighbor => {
-      const additionalCost = graph.cost(current, neighbor)
-      const newCost = costSoFar[current.id] + additionalCost
       const neighborId = makeKey(neighbor)
-      if (!costSoFar.hasOwnProperty(neighborId) || (newCost < costSoFar[neighborId] && neighborId !== startKey)) {
-        const priority = newCost + distance(neighbor, end)
+      const newCost = costSoFar[current.id] + graph.cost(current, neighbor)
+      const neighborNeedsUpdate = newCost < costSoFar[neighborId]
+      if (!costSoFar.hasOwnProperty(neighborId) || neighborNeedsUpdate) {
         costSoFar[neighborId] = newCost
         cameFrom[neighborId] = current.id
+        printer.render(current, costSoFar[current.id])
         printer.render(neighbor, costSoFar[neighborId])
-        frontier.upsert(neighbor, priority)
+        if (neighborNeedsUpdate) {
+          const found = frontier.removeOne(function(node){ return node.id === neighborId})
+          console.log({ found })
+        }
+        const priority = newCost + distance(neighbor, end)
+        const neighborNode = new Node(neighbor, priority)
+        frontier.add(neighborNode)
       }
     })
   }
@@ -268,12 +209,15 @@ function makeKey(point) {
 const generateIndexInBounds = () => Math.floor(Math.random()*10)
 const start = [generateIndexInBounds(), generateIndexInBounds()]
 const end = [generateIndexInBounds(), generateIndexInBounds()]
+// const start = [ 5, 7 ]
+// const end = [ 6, 2 ]
 
 const wall = new GridWithWeights(10, 10)
 const printer = new Terminal(wall.table)
 
 printer.render(start, 'S')
 printer.render(end, 'E')
+console.log({ start, end })
 const { cameFrom, costSoFar } = findAStarPath(wall, start, end, printer)
 printer.render(start, 'S')
 printer.render(end, 'E')
