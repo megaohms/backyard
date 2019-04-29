@@ -30,6 +30,7 @@ const tenByTenSurface = [
 */
 
 const PriorityQueue = require('fastpriorityqueue')
+
 class Terminal {
   constructor(dataTable) {
     this.stream = process.stdout
@@ -61,26 +62,38 @@ class Terminal {
     this.stream.moveCursor(-this.dataTable[0].length, this.dataTable.length)
   }
 }
-//
-// const square = [
-//   [ 0, 0 ],
-//   [ 0, 0 ],
-// ]
-//
-// const printer = new Terminal(square)
-//
-// printer.render([0,0], '.')
-// printer.render([0,1], '.')
-// printer.render([1,0], '.')
-// printer.render([1,1], '.')
-// printer.end()
 
 class SquareGrid {
-    constructor(width /* number */, height /* number */, holes=new Set()) {
+    constructor(width /* number */, height /* number */, holes /*[{ topLeft, ?bottomRight }]*/) {
         this.width = width
         this.height = height
-        this.holes = holes
+        this.holes = new Set()
+        // table is used for printer
         this.table = this.createDataTable(width, height)
+        this.createOpenings(holes)
+    }
+
+    mapOverHoles(holes, callBack) {
+      for (const hole in holes) {
+        const rowStart = hole.topLeft[1]
+        const colStart = hole.topLeft[0]
+        const rowEnd = hole.bottomRight ? hole.bottomRight[1] : rowStart + 1
+        const colEnd = hole.bottomRight ? hole.bottomRight[0] : colStart + 1
+        for (let row = rowStart; row < rowEnd; row++) {
+          for (let col = colStart; col < colEnd; col++) {
+            // this.holes.add(makeKey([col, row]))
+            callBack(col, row)
+          }
+        }
+      }
+    }
+
+    createOpenings(holes) {
+      this.mapOverHoles(holes, function(x, y) { this.holes.add(makeKey[x, y])})
+    }
+
+    patchSurface(areas) {
+      this.mapOverHoles(holes, function(x, y) { this.holes.delete(makeKey[x, y])})
     }
 
     createDataTable(tableWidth, tableHeight) {
@@ -214,7 +227,6 @@ printer.render(start, 'S')
 printer.render(end, 'E')
 console.log({ start, end })
 const { cameFrom, costSoFar } = findAStarPath(wall, start, end, printer)
-// printer.render(start, 'S')
-// printer.render(end, 'E')
+printer.render(end, 'E')
 printer.end()
 console.log({ start, end, cost: costSoFar[makeKey(end)]})
