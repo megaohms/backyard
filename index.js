@@ -28,49 +28,77 @@ const tenByTenSurface = [
 ]
 
 */
-
-class Node {
-  constructor(location /* tuple */, priority /* number */) {
-    const x = location[0]
-    const y = location[1]
-    this.id = `${x},${y}`
-    this.x = x
-    this.y = y
-    this.location = location
-    this.priority = priority
+class Terminal {
+  constructor(dataTable) {
+    this.stream = process.stdout
+    this.dataTable = dataTable
+    // store each stringified row as array so we dont have to rerender every point
+    this.stringifiedRows = this.dataTable.map(this.stringifyRow)
+  }
+  stringifyRow(row) {
+    return row.join(' ') + '\n'
+  }
+  stringifyTable() {
+    return this.stringifiedRows.join('')
+  }
+  render(location, symbol) {
+    // mutate existing to save space
+    if (location.length && symbol) {
+      const currentRowIdx = location[0]
+      const currentColumnIdx = location[1]
+      this.dataTable[currentRowIdx][currentColumnIdx] = symbol
+      this.stringifiedRows[currentRowIdx] = this.stringifyRow(this.dataTable[currentRowIdx])
+      // this.stream.moveCursor(-this.dataTable[0].length, -this.dataTable.length)
+    }
+    else {
+    }
+    this.stream.write(this.stringifyTable())
+      this.stream.moveCursor(-this.dataTable[0].length, -this.dataTable.length)
+  }
+  end() {
+    this.stream.moveCursor(-this.dataTable[0].length, this.dataTable.length)
   }
 }
+
+const square = [
+  [ 0, 0 ],
+  [ 0, 0 ],
+]
+
+const printer = new Terminal(square)
+
+printer.render([0,0], '.')
+printer.render([0,1], '.')
+printer.render([1,0], '.')
+printer.render([1,1], '.')
+printer.end()
 
 class SquareGrid {
     constructor(width /* number */, height /* number */, holes=new Set()) {
         this.width = width
         this.height = height
         this.holes = holes
-        this.representation = []
     }
 
-    inBounds(point /* tuple */) {
+    isPointInBounds(point /* tuple */) {
         const x = point[0]
         const y = point[1]
         return 0 <= x && x < this.width && 0 <= y && y < this.height
     }
 
-    passable(point /* tuple */) {
+    isPointPassable(point /* tuple */) {
         return !this.holes.has(makeKey(point))
     }
 
-    neighbors(node /* Node */) {
+    getNeighbors(node /* Node */) {
         const x = node.x
         const y = node.y
         const results = [[x+1, y], [x, y-1], [x-1, y], [x, y+1]]
-        return results.filter(point => this.inBounds(point))
-                      .filter(point => this.passable(point))
-    }
-
-    render(pointToUpdate, value, costSoFar) {
-      // check if thing has already been rendered
+        return results.filter(point => this.isPointInBounds(point))
+                      .filter(point => this.isPointPassable(point))
     }
 }
+
 class GridWithWeights extends SquareGrid {
     constructor(width, height) {
         super(width, height)
@@ -131,6 +159,18 @@ class PriorityQueue {
   }
 }
 
+class Node {
+  constructor(location /* tuple */, priority /* number */) {
+    const x = location[0]
+    const y = location[1]
+    this.id = `${x},${y}`
+    this.x = x
+    this.y = y
+    this.location = location
+    this.priority = priority
+  }
+}
+
 function distance(start,end) {
   const [ x1, y1 ] = start
   const [ x2, y2 ] = end
@@ -142,6 +182,7 @@ function findAStarPath(graph, start, end) {
   // keyed by stringified location
   const cameFrom = {}
   const costSoFar = {}
+  const endKey = makeKey(end)
 
   const startNode = new Node(start, 0)
   frontier.insert(startNode, 0)
@@ -150,11 +191,11 @@ function findAStarPath(graph, start, end) {
 
   while (frontier.hasMore()) {
     const current = frontier.remove()
-    if (current.id === makeKey(end)) {
+    if (current.id === endKey) {
       break
     }
 
-    graph.neighbors(current).forEach(neighbor => {
+    graph.getNeighbors(current).forEach(neighbor => {
 
       const additionalCost = graph.cost(current, neighbor)
       const newCost = costSoFar[current.id] + additionalCost
@@ -165,6 +206,7 @@ function findAStarPath(graph, start, end) {
         const neighborNode = new Node(neighbor, priority)
         frontier.insert(neighborNode)
         cameFrom[neighborId] = current.id
+        graph.render()
       }
     })
   }
@@ -180,6 +222,6 @@ const generateIndexInBounds = () => Math.floor(Math.random()*10)
 const start = [ generateIndexInBounds(), generateIndexInBounds()]
 const end = [ generateIndexInBounds(), generateIndexInBounds()]
 
-console.log({ start, end })
-const { cameFrom } = findAStarPath(wall ,start, end)
-console.log({ cameFrom })
+// console.log({ start, end })
+// const { cameFrom } = findAStarPath(wall ,start, end)
+// console.log({ cameFrom })
