@@ -68,32 +68,39 @@ class SquareGrid {
         this.width = width
         this.height = height
         this.holes = new Set()
+        this.createOpenings(holes)
         // table is used for printer
         this.table = this.createDataTable(width, height)
-        this.createOpenings(holes)
     }
 
     mapOverHoles(holes, callBack) {
-      for (const hole in holes) {
+      holes.forEach(function(hole) {
         const rowStart = hole.topLeft[1]
         const colStart = hole.topLeft[0]
         const rowEnd = hole.bottomRight ? hole.bottomRight[1] : rowStart + 1
         const colEnd = hole.bottomRight ? hole.bottomRight[0] : colStart + 1
-        for (let row = rowStart; row < rowEnd; row++) {
-          for (let col = colStart; col < colEnd; col++) {
-            // this.holes.add(makeKey([col, row]))
+        for (let row = rowStart; row <= rowEnd; row++) {
+          for (let col = colStart; col <= colEnd; col++) {
             callBack(col, row)
           }
         }
-      }
+      })
     }
 
     createOpenings(holes) {
-      this.mapOverHoles(holes, function(x, y) { this.holes.add(makeKey[x, y])})
+      const holeSet = this.holes
+      this.mapOverHoles(
+        holes,
+        function(x, y) { holeSet.add(makeKey([x, y])) }
+      )
     }
 
     patchSurface(areas) {
-      this.mapOverHoles(holes, function(x, y) { this.holes.delete(makeKey[x, y])})
+      const holeSet = this.holes
+      this.mapOverHoles(
+        holes,
+        function(x, y) { holeSet.delete(makeKey([x, y])) }
+      )
     }
 
     createDataTable(tableWidth, tableHeight) {
@@ -101,7 +108,7 @@ class SquareGrid {
       for (let rowIdx = 0; rowIdx < tableHeight; rowIdx++) {
         const row = []
         for (let colIdx = 0; colIdx < tableWidth; colIdx++) {
-          if (this.holes.has(makeKey(colIdx, rowIdx))) {
+          if (this.holes.has(makeKey([colIdx, rowIdx]))) {
             row.push('#')
           }
           else {
@@ -133,8 +140,8 @@ class SquareGrid {
 }
 
 class GridWithWeights extends SquareGrid {
-    constructor(width, height) {
-        super(width, height)
+    constructor(width, height, holes) {
+        super(width, height, holes)
         this.weights = {}
     }
 
@@ -220,7 +227,7 @@ const generateIndexInBounds = () => Math.floor(Math.random()*10)
 const start = [generateIndexInBounds(), generateIndexInBounds()]
 const end = [generateIndexInBounds(), generateIndexInBounds()]
 
-const wall = new GridWithWeights(10, 10)
+const wall = new GridWithWeights(10, 10, [{topLeft: [0,0], bottomRight: [1,2]}])
 const printer = new Terminal(wall.table)
 
 printer.render(start, 'S')
