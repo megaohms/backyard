@@ -157,15 +157,14 @@ function distance(start,end) {
 
 function findAStarPath(graph, start, end, printer) {
   const frontier = new PriorityQueue(function(nodeA, nodeB) {
-    return nodeB.cost - nodeA.cost
+    return nodeA.cost < nodeB.cost
   })
   // keyed by stringified location
   const cameFrom = {}
   const costSoFar = {}
   const endKey = makeKey(end)
 
-  // frontier.upsert(start, 0)
-  const startNode = new Node(start, distance(start, end))
+  const startNode = new Node(start, 0)
   frontier.add(startNode)
 
   const startKey = makeKey(start)
@@ -173,10 +172,9 @@ function findAStarPath(graph, start, end, printer) {
   cameFrom[startKey] = 0
 
   while (!frontier.isEmpty()) {
-    frontier.forEach(({ id, cost }) => console.log({ id, cost }))
+    // frontier.forEach(({ id, cost }) => console.log({ id, cost }))
     const current = frontier.poll()
     if (current.id === endKey) {
-      console.log("FOUND")
       break
     }
 
@@ -191,7 +189,6 @@ function findAStarPath(graph, start, end, printer) {
         printer.render(neighbor, costSoFar[neighborId])
         if (neighborNeedsUpdate) {
           const found = frontier.removeOne(function(node){ return node.id === neighborId})
-          console.log({ found })
         }
         const priority = newCost + distance(neighbor, end)
         const neighborNode = new Node(neighbor, priority)
@@ -209,8 +206,6 @@ function makeKey(point) {
 const generateIndexInBounds = () => Math.floor(Math.random()*10)
 const start = [generateIndexInBounds(), generateIndexInBounds()]
 const end = [generateIndexInBounds(), generateIndexInBounds()]
-// const start = [ 5, 7 ]
-// const end = [ 6, 2 ]
 
 const wall = new GridWithWeights(10, 10)
 const printer = new Terminal(wall.table)
@@ -219,8 +214,7 @@ printer.render(start, 'S')
 printer.render(end, 'E')
 console.log({ start, end })
 const { cameFrom, costSoFar } = findAStarPath(wall, start, end, printer)
-printer.render(start, 'S')
-printer.render(end, 'E')
+// printer.render(start, 'S')
+// printer.render(end, 'E')
 printer.end()
 console.log({ start, end, cost: costSoFar[makeKey(end)]})
-// console.log({ cameFrom })
