@@ -53,8 +53,6 @@ class Terminal {
       this.dataTable[currentRowIdx][currentColumnIdx] = symbol
       this.stringifiedRows[currentRowIdx] = this.stringifyRow(this.dataTable[currentRowIdx])
     }
-    else {
-    }
     this.stream.write(this.stringifyTable())
     this.stream.moveCursor(-this.dataTable[0].length, -this.dataTable.length)
   }
@@ -70,7 +68,7 @@ class RectangularGrid {
         this.holes = new Set()
         this.createOpenings(holes)
         // table is used for printer
-        this.table = this.createDataTable(width, height)
+        this.table = [] // works for 2d: this.createDataTable(width, height)
     }
 
     mapOverHoles(holes, callBack) {
@@ -103,11 +101,11 @@ class RectangularGrid {
       )
     }
 
-    createDataTable(tableWidth, tableHeight) {
+    createDataTable() {
       const table = []
-      for (let rowIdx = 0; rowIdx < tableHeight; rowIdx++) {
+      for (let rowIdx = 0; rowIdx < this.height; rowIdx++) {
         const row = []
-        for (let colIdx = 0; colIdx < tableWidth; colIdx++) {
+        for (let colIdx = 0; colIdx < this.width; colIdx++) {
           if (this.holes.has(makeKey([colIdx, rowIdx]))) {
             row.push('#')
           }
@@ -117,7 +115,7 @@ class RectangularGrid {
         }
         table.push(row)
       }
-      return table
+      this.table = table
     }
 
     isPointInBounds(point /* tuple */) {
@@ -168,14 +166,21 @@ class Node {
 }
 
 class SurfaceNode {
-  constructor(type, dimensions, neighbors={}) {
+  constructor(type, dimensions, coordinates, neighbors={}) {
     this.type = type
-    // orientation is only for vertical surfaces: North, East, South, West
     this.id = `${type}` // todo: add parentRoom name in id
     this.neighbors = neighbors
     const { width, height } = dimensions
     this.grid = new GridWithWeights(width, height)
-    this.getRelativeX = dimensions.getRelativeX // takes search space's x,y
+    this.surfaceBoundCoords = coordinates
+  }
+  isPointOnSurface(point) {
+    return point[0] >= this.surfaceBoundCoords.x &&
+      point[0] <= this.surfaceBoundCoords.x + this.surfaceBoundCoords.xMax &&
+      point[1] >= this.surfaceBoundCoords.y &&
+      point[1] <= this.surfaceBoundCoords.y + this.surfaceBoundCoords.yMax &&
+      point[2] >= this.surfaceBoundCoords.z &&
+      point[2] <= this.surfaceBoundCoords.z + this.surfaceBoundCoords.zMax
   }
   addNeighbor(sharedEdge, neighbor) {
     // sharedEdge can be
@@ -206,7 +211,7 @@ class RoomNode {
     // todo: prefer ceil/floor, floor/wall, wall/ceil
     // todo: 2x wall cost
     // transform surfaces to be same orientatin
-    const { x, y, z } = dimensions
+    this.dimensions = dimensions
     // topLeft of floor is x=0, y=0; z=0
     // bottomLeft of North wall is x=0; y=0; z=0
 
@@ -225,66 +230,79 @@ class RoomNode {
     // x0, y0 are connecting points where
     // new suface will be added to the search space
     this.wallNorth = new SurfaceNode('wall', {
-      width: x,
-      height: z,
-      getRelativeX: function(x0, y0, x, y, z) {
-        return x0 + x
+        width: this.dimensions.x,
+        height: this.dimensions.z,
+        getRelativeX: function(x0, y0, x, y, z) {
+          return x0 + x
+        },
+        getRelativeY: function(x0, y0, x, y, z) {
+          return y0 - z
+        },
       },
-      getRelativeY: function(x0, y0, x, y, z) {
-        return y0 - z
-      }
-    })
+      { x: 0, xMax: this.dimensions.x, y: 0, yMax: 0, z: 0, zMax: this.dimensions.z }
+    )
     this.wallEast = new SurfaceNode('wall', {
-      width: y,
-      height: z,
-      getRelativeX: function(x0, y0, x, y, z) {
-        return x0 + dimensions.y - y
+        width: this.dimensions.y,
+        height: this.dimensions.z,
+        getRelativeX: function(x0, y0, x, y, z) {
+          return x0 + dimensions.y - y
+        },
+        getRelativeY: function(x0, y0, x, y, z) {
+          return y0 + x
+        },
       },
-      getRelativeY: function(x0, y0, x, y, z) {
-        return y0 + x
-      }
-    })
+      { x: this.dimensions.x, xMax: this.dimensions.x, y: 0, yMax: this.dimensions.y, z: 0, zMax: this.dimensions.z }
+    )
     this.wallSouth = new SurfaceNode('wall', {
-      width: x,
-      height: z,
-      getRelativeX: function(x0, y0, x, y, z) {
-        return x0 + x
+        width: this.dimensions.x,
+        height: this.dimensions.z,
+        getRelativeX: function(x0, y0, x, y, z) {
+          return x0 + x
+        },
+        getRelativeY: function(x0, y0, x, y, z) {
+          return y0 + z
+        },
       },
-      getRelativeY: function(x0, y0, x, y, z) {
-        return y0 + z
-      },
-    })
+      { xMax: this.dimensions.x, x: 0, y: 0, yMax:this.dimensions.y, z: 0, zMax: this.dimensions.z }
+    )
     this.wallWest = new SurfaceNode('wall', {
-      width: y,
-      height: z,
-      getRelativeX: function(x0, y0, x, y, z) {
-        return x0 - dimensions.z - z
+        width: this.dimensions.y,
+        height: this.dimensions.z,
+        getRelativeX: function(x0, y0, x, y, z) {
+          return x0 - dimensions.z - z
+        },
+        getRelativeY: function(x0, y0, x, y, z) {
+          return y0 + y
+        },
       },
-      getRelativeY: function(x0, y0, x, y, z) {
-        return y0 + y
-      },
-    })
+      { x: 0, xMax: 0, y: 0, yMax: this.dimensions.y, z: 0, zMax: this.dimensions.z }
+    )
     this.ceil = new SurfaceNode('ceiling', {
-      width: x,
-      height: y,
-      // flipping the ceiling upside-down
-      getRelativeX: function(x0, y0, x, y, z) {
-        return x0 + dimensions.x - x
+        width: this.dimensions.x,
+        height: this.dimensions.y,
+        // flipping the ceiling upside-down
+        getRelativeX: function(x0, y0, x, y, z) {
+          return x0 + dimensions.x - x
+        },
+        getRelativeY: function(x0, y0, x, y, z) {
+          return y0 + y
+        },
       },
-      getRelativeY: function(x0, y0, x, y, z) {
-        return y0 + y
-      },
-    })
+      { x: 0, xMax: this.dimensions.x, y: 0, yMax: this.dimensions.y, z: this.dimensions.z, zMax: this.dimensions.z }
+    )
     this.floor = new SurfaceNode('floor', {
-      width: x,
-      height: y,
-      getRelativeX: function(x0, y0) {
-        return x0 + x
+        parentDimensions: dimensions,
+        width: this.dimensions.x,
+        height: this.dimensions.y,
+        getRelativeX: function(x0, y0, x, y, z) {
+          return x0 + x
+        },
+        getRelativeY: function(x0, y0, x, y, z) {
+          return y0 + y
+        },
       },
-      getRelativeY: function(x0, y0) {
-        return y0 + y
-      },
-    })
+      { x: 0, xMax: this.dimensions.x,  y: 0, yMax: this.dimensions.y, z: 0, zMax: 0 }
+    )
     this.wallNorth.addNeighbors([
       { neighbor: this.wallEast, direction: 'left' },
       { neighbor: this.wallWest, direction: 'right' },
@@ -326,15 +344,62 @@ class RoomNode {
       { neighbor: this.wallEast, direction: 'right' },
       { neighbor: this.wallWest, direction: 'left' },
     ])
+    this.surfaces = [
+      this.wallNorth, this.wallEast, this.wallSouth, this.wallWest, this.floor, this.ceil
+    ]
     // draws table of room unfolded
     const noWalls = [{topLeft: [0,0]}, {topLeft:[0,2]},{topLeft: [0,1], bottomRight: [2,1]}, {topLeft: [3,1], bottomRight: [3,3]}]
     this.room2d = new GridWithWeights(4, 3, noWalls)
   }
+  findSurfaceFromPoint(point) {
+    const x = point[0]
+    const y = point[1]
+    const z = point[2]
+    return this.surfaces.filter(surface => surface.isPointOnSurface(point))[0]
+    // if (x === 0) {
+    //   surfaces.delete(this.wallEast)
+    // }
+    // if (x === this.dimensions.x) {
+    //   surfaces.delete(this.wallWest)
+    // }
+    // if (y === 0) {
+    //   surfaces.delete(this.wallSouth)
+    // }
+    // if (y === this.dimensions.y) {
+    //   surfaces.delete(this.wallNorth)
+    // }
+    // if (z === 0) {
+    //   surfaces.delete(this.floor)
+    // }
+    // if (z === this.dimensions.z) {
+    //   surfaces.delete(this.ceil)
+    // }
+    // if (x && y) {
+    //   return this.floor
+    // }
+    // if (x && z) {
+    //   return this.floor
+    // }
+  }
 }
 
 class SearchSpace extends GridWithWeights{
-  constructor(width, height) {
-    super(width, height)
+  constructor(room, start) {
+    console.log({ start })
+    const surface = room.findSurfaceFromPoint(start)
+    console.log({ surface })
+    super(surface.width, surface.height)
+    this.room = room
+    this.start = start
+    this.createDataTable(surface)
+  }
+  createDataTable(surface) {
+
+  }
+  getNeighbors3d(currentPoint) {
+    console.log(this.room.findSurfaceFromPoint(currentPoint))
+    //this.getNeighbors
+
   }
 }
 
@@ -401,22 +466,46 @@ function makeKey(point) {
   return `${point[0]},${point[1]},${point[2]}`
 }
 
+const generateIndexInBounds = max => Math.floor(Math.random()*max)
+/*
+Unfolded 3d space search
+
 const x = 10
 const y = 10
 const z = 10
-const generateIndexInBounds = max => Math.floor(Math.random()*max)
+const dimensions = [x,y,z]
+
 const start = [generateIndexInBounds(x), generateIndexInBounds(y), generateIndexInBounds(z)]
+// one dimension must be 0 or 10
+const xYorZ = Math.floor(Math.random()*3)
+start[xYorZ] = Math.round(Math.random())*dimensions[xYorZ
+]
 const end = [generateIndexInBounds(x), generateIndexInBounds(y), generateIndexInBounds(z)]
+// one dimension must be 0 or 10
+end[Math.floor(Math.random()*3)] = 0
 
-// const wall = new GridWithWeights(10, 10, [{topLeft: [0,0], bottomRight: [1,2]}])
 const room = new RoomNode({ x, y, z })
-const searchSpace = new SearchSpace(x, y)
+const searchSpace = new SearchSpace(room, start)
 const printer = new Terminal(searchSpace.table)
+*/
 
+///*
+//2D Search with weighted walls and dropped nodes
+
+const x = 10
+const y = 12
+const start = [generateIndexInBounds(x), generateIndexInBounds(y)]
+const end = [generateIndexInBounds(x), generateIndexInBounds(y)]
+
+const window = { topLeft: [2,2], bottomRight: [5,4]}
+const wall = new GridWithWeights(x, y, [window])
+wall.createDataTable()
+const printer = new Terminal(wall.table)
 printer.render(start, 'S')
 printer.render(end, 'E')
 console.log({ start, end })
-const { cameFrom, costSoFar } = findAStarPath(searchSpace, start, end, printer)
+const { cameFrom, costSoFar } = findAStarPath(wall, start, end, printer)
 printer.render(end, 'E')
 printer.end()
 console.log({ start, end, cost: costSoFar[makeKey(end)]})
+//*/
