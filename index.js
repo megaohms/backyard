@@ -1,65 +1,6 @@
-/*
-Tasks
-1. Create a 3d gridded structure with three or more connected rooms. Pick an arbitrary point on the grid to act as an input (a) and another placed elsewhere that acts as an electronic device (b). Write an algorithm that finds the minimal path/s along the grid lines between the two points.
-2. In some cases it is disadvantageous to pass electronic wiring from wall to floor, or wall to ceiling. Write a function that allows you to specify that the path can should only run through either one or two of the following: floor / ceiling / wall.
-3. Most structures have openings on their surfaces that complicate the pathway electrical wiring needs to take. Add a feature that allows you to easily remove or reinstate grid lines.
-4. Structures don’t always have the same combination of rooms. Ensure that it is easy to change the size and placement of rooms. Demonstrate that your functions respond dynamically to structure changes.
-5. Add another electrical device to the structure (c). Generate the shortest path between all three points.
-6. It costs 2x more to run electrical wiring through walls. Introduce the ability to parametrically change the cost of a 1ft increment based on its location in the wall, floor or ceiling. Show that the path adjusts dynamically to the change in input.
-
-
-const singleCubeSurfaces = [
-[ 0, 1, 0, 0 ],
-[ 1, 1, 1, 1 ],
-[ 0, 1, 0, 0 ],
-]
-
-const tenByTenSurface = [
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-[ 1,1,1,1,1,1,1,1,1,1 ],
-]
-
-*/
-
 const PriorityQueue = require('fastpriorityqueue')
 
-class Terminal {
-  constructor(dataTable) {
-    this.stream = process.stdout
-    this.dataTable = dataTable
-
-    // store each stringified row as array so we dont have to rerender every point
-    this.stringifiedRows = this.dataTable.map(this.stringifyRow)
-  }
-  stringifyRow(row) {
-    return row.join(' ') + '\n'
-  }
-  stringifyTable() {
-    return this.stringifiedRows.join('')
-  }
-  render(location, symbol) {
-    // mutate existing to save space
-    if (location.length && symbol) {
-      const currentRowIdx = location[1]
-      const currentColumnIdx = location[0]
-      this.dataTable[currentRowIdx][currentColumnIdx] = symbol
-      this.stringifiedRows[currentRowIdx] = this.stringifyRow(this.dataTable[currentRowIdx])
-    }
-    this.stream.write(this.stringifyTable())
-    this.stream.moveCursor(-this.dataTable[0].length, -this.dataTable.length)
-  }
-  end() {
-    this.stream.moveCursor(-this.dataTable[0].length, this.dataTable.length)
-  }
-}
+const Terminal = require('./Terminal')
 
 class RectangularGrid {
     constructor(width /* number */, height /* number */, holes=[] /*[{ topLeft, ?bottomRight }]*/) {
