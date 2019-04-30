@@ -5,7 +5,7 @@ const Terminal = require('./Terminal')
 const Node = require('./Node')
 const RectangularGrid = require('./RectangularGrid')
 const GridWithWeights = require('./GridWithWeights')
-const Surface = require('./SurfaceNode')
+const Surface = require('./Surface')
 const Room = require('./RoomNode')
 
 const SearchSpace = require('./SearchSpace')

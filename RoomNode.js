@@ -1,6 +1,7 @@
 'use strict'
 
 const Surface = require('./Surface')
+const GridWithWeights = require('./GridWithWeights')
 
 module.exports = class Room {
   /*
@@ -31,7 +32,7 @@ module.exports = class Room {
 
     // x0, y0 are connecting points where
     // new suface will be added to the search space
-    this.wallNorth = new SurfaceNode('wall', {
+    this.wallNorth = new Surface('wall', {
         width: this.dimensions.x,
         height: this.dimensions.z,
         getRelativeX: function(x0, y0, x, y, z) {
@@ -44,7 +45,7 @@ module.exports = class Room {
       },
       { x: 0, xMax: this.dimensions.x, y: 0, yMax: 0, z: 0, zMax: this.dimensions.z }
     )
-    this.wallEast = new SurfaceNode('wall', {
+    this.wallEast = new Surface('wall', {
         width: this.dimensions.y,
         height: this.dimensions.z,
         getRelativeX: function(x0, y0, x, y, z) {
@@ -57,7 +58,7 @@ module.exports = class Room {
       },
       { x: this.dimensions.x, xMax: this.dimensions.x, y: 0, yMax: this.dimensions.y, z: 0, zMax: this.dimensions.z }
     )
-    this.wallSouth = new SurfaceNode('wall', {
+    this.wallSouth = new Surface('wall', {
         width: this.dimensions.x,
         height: this.dimensions.z,
         getRelativeX: function(x0, y0, x, y, z) {
@@ -70,7 +71,7 @@ module.exports = class Room {
       },
       { xMax: this.dimensions.x, x: 0, y: 0, yMax:this.dimensions.y, z: 0, zMax: this.dimensions.z }
     )
-    this.wallWest = new SurfaceNode('wall', {
+    this.wallWest = new Surface('wall', {
         width: this.dimensions.y,
         height: this.dimensions.z,
         getRelativeX: function(x0, y0, x, y, z) {
@@ -83,7 +84,7 @@ module.exports = class Room {
       },
       { x: 0, xMax: 0, y: 0, yMax: this.dimensions.y, z: 0, zMax: this.dimensions.z }
     )
-    this.ceil = new SurfaceNode('ceiling', {
+    this.ceil = new Surface('ceiling', {
         width: this.dimensions.x,
         height: this.dimensions.y,
         // flipping the ceiling upside-down
@@ -97,7 +98,7 @@ module.exports = class Room {
       },
       { x: 0, xMax: this.dimensions.x, y: 0, yMax: this.dimensions.y, z: this.dimensions.z, zMax: this.dimensions.z }
     )
-    this.floor = new SurfaceNode('floor', {
+    this.floor = new Surface('floor', {
         parentDimensions: dimensions,
         width: this.dimensions.x,
         height: this.dimensions.y,

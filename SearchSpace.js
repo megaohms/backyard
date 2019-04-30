@@ -6,7 +6,7 @@ const { makeKey } = require('./helpers')
 module.exports = class SearchSpace extends GridWithWeights{
   constructor(room, start) {
     console.log({ start })
-    const surface = this.room.findSurfaceFromPoint(start)
+    const surface = room.findSurfaceFromPoint(start)
     console.log({ surface })
     super(surface.width, surface.height)
     this.room = room
@@ -39,7 +39,7 @@ module.exports = class SearchSpace extends GridWithWeights{
     const table = []
     for (let rowIdx = 0; rowIdx < surface.height; rowIdx++) {
       const row = []
-      for (let colIdx = 0; colIdx < surface.width colIdx++) {
+      for (let colIdx = 0; colIdx < surface.width; colIdx++) {
         const value = relativeTable[rowIdx][colIdx]
         row[surface.dimension.getRelativeX(0, 0, )] = value
       }
