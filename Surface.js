@@ -8,7 +8,21 @@ module.exports = class Surface {
     this.id = `${type}` // todo: add parentRoom name in id
     this.neighbors = neighbors
     const { width, height } = dimensions
+    /* dimensions {
+      height, width are for creating the relative grid
+      getRelativeX, getRelativeY are transformation methods for projecting to search space
+      axis ordered string tuple for normalizing the grid surface in 3d space
+    }
+    */
+    this.dimensions = dimensions
     this.grid = new GridWithWeights(width, height)
+    /* surfaceBoundCoords {
+        x, xMax, y, yMax, z, zMax
+        actual coordinates of wall corners
+        reference for determining if a
+        3d point is on a surface
+    }
+    */
     this.surfaceBoundCoords = coordinates
   }
   isPointOnSurface(point) {

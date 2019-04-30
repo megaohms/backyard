@@ -40,6 +40,7 @@ module.exports = class Room {
         getRelativeY: function(x0, y0, x, y, z) {
           return y0 - z
         },
+        axis: ['x','z'],
       },
       { x: 0, xMax: this.dimensions.x, y: 0, yMax: 0, z: 0, zMax: this.dimensions.z }
     )
@@ -52,6 +53,7 @@ module.exports = class Room {
         getRelativeY: function(x0, y0, x, y, z) {
           return y0 + x
         },
+        axis: ['y', 'z']
       },
       { x: this.dimensions.x, xMax: this.dimensions.x, y: 0, yMax: this.dimensions.y, z: 0, zMax: this.dimensions.z }
     )
@@ -64,6 +66,7 @@ module.exports = class Room {
         getRelativeY: function(x0, y0, x, y, z) {
           return y0 + z
         },
+        axis: ['x', 'z']
       },
       { xMax: this.dimensions.x, x: 0, y: 0, yMax:this.dimensions.y, z: 0, zMax: this.dimensions.z }
     )
@@ -76,6 +79,7 @@ module.exports = class Room {
         getRelativeY: function(x0, y0, x, y, z) {
           return y0 + y
         },
+        axis: ['y', 'z']
       },
       { x: 0, xMax: 0, y: 0, yMax: this.dimensions.y, z: 0, zMax: this.dimensions.z }
     )
@@ -89,6 +93,7 @@ module.exports = class Room {
         getRelativeY: function(x0, y0, x, y, z) {
           return y0 + y
         },
+        axis: ['x', 'y']
       },
       { x: 0, xMax: this.dimensions.x, y: 0, yMax: this.dimensions.y, z: this.dimensions.z, zMax: this.dimensions.z }
     )
@@ -102,6 +107,7 @@ module.exports = class Room {
         getRelativeY: function(x0, y0, x, y, z) {
           return y0 + y
         },
+        axis: ['x', 'y']
       },
       { x: 0, xMax: this.dimensions.x,  y: 0, yMax: this.dimensions.y, z: 0, zMax: 0 }
     )
@@ -112,35 +118,30 @@ module.exports = class Room {
       { neighbor: this.ceil, direction: 'top' },
     ])
     this.wallEast.addNeighbors([
-      // this.wallNorth, this.wallSouth, this.floor, this.ceil
       { neighbor: this.wallNorth, direction: 'right' },
       { neighbor: this.wallSouth, direction: 'left' },
       { neighbor: this.floor, direction: 'bottom' },
       { neighbor: this.ceil, direction: 'top' },
     ])
     this.wallSouth.addNeighbors([
-      // this.wallEast, this.wallWest, this.floor, this.ceil
       { neighbor: this.wallEast, direction: 'right' },
       { neighbor: this.wallWest, direction: 'left' },
       { neighbor: this.floor, direction: 'bottom' },
       { neighbor: this.ceil, direction: 'top' },
     ])
     this.wallWest.addNeighbors([
-      // this.wallSouth, this.wallNorth, this.floor, this.ceil,
       { neighbor: this.wallSouth, direction: 'right' },
       { neighbor: this.wallNorth, direction: 'left' },
       { neighbor: this.floor, direction: 'bottom' },
       { neighbor: this.ceil, direction: 'top' },
     ])
     this.floor.addNeighbors([
-      // this.wallNorth, this.wallSouth, this.wallEast, this.wallWest
       { neighbor: this.wallNorth, direction: 'top' },
       { neighbor: this.wallSouth, direction: 'bottom' },
       { neighbor: this.wallEast, direction: 'right' },
       { neighbor: this.wallWest, direction: 'left' },
     ])
     this.ceil.addNeighbors([
-      // this.wallNorth, this.wallSouth, this.wallEast, this.wallWest,
       { neighbor: this.wallNorth, direction: 'top' },
       { neighbor: this.wallSouth, direction: 'bottom' },
       { neighbor: this.wallEast, direction: 'right' },
@@ -149,7 +150,7 @@ module.exports = class Room {
     this.surfaces = [
       this.wallNorth, this.wallEast, this.wallSouth, this.wallWest, this.floor, this.ceil
     ]
-    // draws table of room unfolded
+    // draws table of room unfolded - see comment at top of class
     const noWalls = [{topLeft: [0,0]}, {topLeft:[0,2]},{topLeft: [0,1], bottomRight: [2,1]}, {topLeft: [3,1], bottomRight: [3,3]}]
     this.room2d = new GridWithWeights(4, 3, noWalls)
   }

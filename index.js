@@ -1,3 +1,4 @@
+'use strict'
 
 const Terminal = require('./Terminal')
 
@@ -15,11 +16,34 @@ const {
   generateIndexInBounds,
 } = require('./helpers')
 
-
-
 /*
-Unfolded 3d space search
 
+Find shortest path along prism
+
+My approach to the problem was to break down in smaller
+pieces, and iterate on that.
+First, we can find the shortest path along a 2d surface.
+This allowed me to get search working properly
+without worrying about other aspects of the problem.
+Adding complexity, my next step is to "unfold" rooms so adjacent
+surfaces are transposed and projected onto the same 2d surface as the start,
+for a single room.
+Finally, we can connect more floors and walls to make multiple rooms.
+
+
+The search algorithm I chose to work with is A*, because we know the
+end destination and it's a location-based graph search! This allows us to
+narrow the search space significantly so we don't have to iterate over all
+possible paths.
+
+
+Uncomment the 2d portion and see the costs get plotted over the search space
+*/
+
+///*
+// Unfolded 3d space search
+
+// wall dimensions, we'll start with a cube
 const x = 10
 const y = 10
 const z = 10
@@ -37,10 +61,10 @@ end[Math.floor(Math.random()*3)] = 0
 const room = new Room({ x, y, z })
 const searchSpace = new SearchSpace(room, start)
 const printer = new Terminal(searchSpace.table)
-*/
+//*/
 
-///*
-//2D Search with weighted walls and dropped nodes
+/*
+// 2D Search with dropped nodes
 
 const x = 10
 const y = 12
@@ -58,4 +82,4 @@ const { cameFrom, costSoFar } = findAStarPath(wall, start, end, Node, printer)
 printer.render(end, 'E')
 printer.end()
 console.log({ start, end, cost: costSoFar[makeKey(end)]})
-//*/
+*/
