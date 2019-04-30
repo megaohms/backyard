@@ -40,7 +40,7 @@ possible paths.
 Uncomment the 2d portion and see the costs get plotted over the search space
 */
 
-///*
+/*
 // Unfolded 3d space search
 
 // wall dimensions, we'll start with a cube
@@ -61,9 +61,9 @@ end[Math.floor(Math.random()*3)] = 0
 const room = new Room({ x, y, z })
 const searchSpace = new SearchSpace(room, start)
 const printer = new Terminal(searchSpace.table)
-//*/
+*/
 
-/*
+///*
 // 2D Search with dropped nodes
 
 const x = 10
@@ -82,4 +82,4 @@ const { cameFrom, costSoFar } = findAStarPath(wall, start, end, Node, printer)
 printer.render(end, 'E')
 printer.end()
 console.log({ start, end, cost: costSoFar[makeKey(end)]})
-*/
+//*/
